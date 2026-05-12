@@ -1,71 +1,65 @@
-'use client'
+"use client";
 
-import { useState, useEffect } from 'react'
-import { Calendar, Search, Building2 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
+import { useState, useEffect } from "react";
+import { Calendar, Search, Building2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
   CardDescription,
-} from '@/components/ui/card'
-import { SimpleHeader } from '@/components/ui/simple-header'
-import { getCompanies } from '@/lib/actions/company'
-import type { ICompany } from '@/lib/models/company'
+} from "@/components/ui/card";
+import { SimpleHeader } from "@/components/ui/simple-header";
+import { getCompanies } from "@/lib/actions/company";
+import type { ICompany } from "@/lib/models/company";
 
 export default function PurchasePage() {
-  const [companies, setCompanies] = useState<ICompany[]>([])
-  const [startDate, setStartDate] = useState('')
-  const [endDate, setEndDate] = useState(getTodayDate())
-  const [searchName, setSearchName] = useState('')
-  const [isLoading, setIsLoading] = useState(false)
+  const [companies, setCompanies] = useState<ICompany[]>([]);
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState(getTodayDate());
+  const [searchName, setSearchName] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
   function getTodayDate() {
-    const today = new Date()
-    return today.toISOString().split('T')[0]
+    const today = new Date();
+    return today.toISOString().split("T")[0];
   }
 
   async function handleFilter() {
-    setIsLoading(true)
+    setIsLoading(true);
 
     try {
-      const start = startDate ? new Date(startDate) : undefined
-      const end = endDate ? new Date(endDate) : undefined
+      const start = startDate ? new Date(startDate) : undefined;
+      const end = endDate ? new Date(endDate) : undefined;
 
-      const result = await getCompanies(start, end, searchName)
+      const result = await getCompanies(start, end, searchName);
 
       if (result.success) {
-        setCompanies(result.data)
+        setCompanies(result.data);
       }
     } catch (err) {
-      console.error(err)
+      console.error(err);
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
   }
 
-  useEffect(() => {
-    handleFilter()
-  }, [])
-
   const formatDate = (date: string | Date) => {
-    if (typeof date === 'string') date = new Date(date)
-    return new Intl.DateTimeFormat('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    }).format(new Date(date))
-  }
+    if (typeof date === "string") date = new Date(date);
+    return new Intl.DateTimeFormat("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(new Date(date));
+  };
 
   return (
     <div className="mesh-bg min-h-screen flex flex-col">
-      <SimpleHeader />
-
       <main className="flex-1 px-4 py-8">
         <div className="mx-auto max-w-6xl">
           {/* Header */}
@@ -134,8 +128,8 @@ export default function PurchasePage() {
                     value={searchName}
                     onChange={(e) => setSearchName(e.target.value)}
                     onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        handleFilter()
+                      if (e.key === "Enter") {
+                        handleFilter();
                       }
                     }}
                     className="border-white/[0.07] bg-white/[0.02] text-white placeholder:text-white/30"
@@ -149,13 +143,13 @@ export default function PurchasePage() {
                     disabled={isLoading}
                     className="bg-violet-600 hover:bg-violet-700 text-white"
                   >
-                    {isLoading ? 'Searching...' : 'Search'}
+                    {isLoading ? "Searching..." : "Search"}
                   </Button>
                   <Button
                     onClick={() => {
-                      setStartDate('')
-                      setEndDate(getTodayDate())
-                      setSearchName('')
+                      setStartDate("");
+                      setEndDate(getTodayDate());
+                      setSearchName("");
                     }}
                     variant="outline"
                     className="border-white/[0.07] text-white hover:bg-white/[0.05]"
@@ -171,8 +165,12 @@ export default function PurchasePage() {
           {companies.length > 0 ? (
             <div className="space-y-4">
               <div className="text-sm text-white/60">
-                Showing <span className="font-semibold text-white">{companies.length}</span> result
-                {companies.length !== 1 ? 's' : ''}
+                Showing{" "}
+                <span className="font-semibold text-white">
+                  {companies.length}
+                </span>{" "}
+                result
+                {companies.length !== 1 ? "s" : ""}
               </div>
 
               <div className="grid gap-4">
@@ -190,7 +188,9 @@ export default function PurchasePage() {
                           </p>
                           <div className="flex items-center gap-2">
                             <Building2 className="size-4 text-violet-400" />
-                            <p className="text-white font-mono">{company.companyName}</p>
+                            <p className="text-white font-mono">
+                              {company.companyName}
+                            </p>
                           </div>
                         </div>
 
@@ -199,7 +199,9 @@ export default function PurchasePage() {
                           <p className="text-xs font-semibold tracking-wide text-white/50 uppercase mb-1">
                             Phone
                           </p>
-                          <p className="text-white font-mono">{company.phoneNumber}</p>
+                          <p className="text-white font-mono">
+                            {company.phoneNumber}
+                          </p>
                         </div>
 
                         {/* Purchase Person */}
@@ -207,7 +209,9 @@ export default function PurchasePage() {
                           <p className="text-xs font-semibold tracking-wide text-white/50 uppercase mb-1">
                             Purchase Person
                           </p>
-                          <p className="text-white font-mono">{company.purchasePerson}</p>
+                          <p className="text-white font-mono">
+                            {company.purchasePerson}
+                          </p>
                         </div>
 
                         {/* Notes */}
@@ -216,7 +220,9 @@ export default function PurchasePage() {
                             <p className="text-xs font-semibold tracking-wide text-white/50 uppercase mb-1">
                               Notes
                             </p>
-                            <p className="text-white/70 text-sm">{company.notes}</p>
+                            <p className="text-white/70 text-sm">
+                              {company.notes}
+                            </p>
                           </div>
                         )}
 
@@ -249,5 +255,5 @@ export default function PurchasePage() {
         </div>
       </main>
     </div>
-  )
+  );
 }

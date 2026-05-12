@@ -1,61 +1,91 @@
-'use client'
+"use client";
 
-import { useState } from 'react'
-import { toast } from 'sonner'
-import { LoaderCircle, Building2, Phone, User, FileText } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
+import { useState } from "react";
+import { toast } from "sonner";
+import {
+  LoaderCircle,
+  Building2,
+  Phone,
+  User,
+  FileText,
+  ChevronDown,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
   CardDescription,
-} from '@/components/ui/card'
-import { saveCompany, type CompanyFormData } from '@/lib/actions/company'
+} from "@/components/ui/card";
+import { saveCompany, type CompanyFormData } from "@/lib/actions/company";
+
+const PERSON_LIST = [
+  "Wasfy",
+  "Nabil",
+  "Yasmin",
+  "Aya",
+  "Wafaa",
+  "Essam",
+  "Hamouda",
+  "Zaghlol",
+];
 
 const INITIAL_STATE: CompanyFormData = {
-  companyName: '',
-  phoneNumber: '',
-  purchasePerson: '',
-  notes: '',
-}
+  companyName: "",
+  phoneNumber: "",
+  purchasePerson: "",
+  notes: "",
+};
 
 export default function CompanyForm() {
-  const [form, setForm] = useState<CompanyFormData>(INITIAL_STATE)
-  const [isPending, setIsPending] = useState(false)
+  const [form, setForm] = useState<CompanyFormData>(INITIAL_STATE);
+  const [isPending, setIsPending] = useState(false);
+  const [openDropdown, setOpenDropdown] = useState(false);
 
   function handleChange(
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
   ) {
-    setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }))
+    setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+  }
+
+  function handlePersonSelect(person: string) {
+    setForm((prev) => ({ ...prev, purchasePerson: person }));
+    setOpenDropdown(false);
   }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault()
-    setIsPending(true)
+    e.preventDefault();
+    setIsPending(true);
 
     try {
-      const result = await saveCompany(form)
+      const result = await saveCompany(form);
 
       if (result.success) {
-        toast.success('Entry saved!', {
+        toast.success("Entry saved!", {
           description: `${form.companyName} has been added successfully.`,
-        })
-        setForm(INITIAL_STATE)
+        });
+        setForm(INITIAL_STATE);
       } else {
-        toast.error('Save failed', {
+        toast.error("Save failed", {
           description: result.error,
-        })
+        });
       }
     } catch {
-      toast.error('Unexpected error', {
-        description: 'Something went wrong. Please try again.',
-      })
+      toast.error("Unexpected error", {
+        description: "Something went wrong. Please try again.",
+      });
     } finally {
-      setIsPending(false)
+      setIsPending(false);
     }
   }
 
@@ -106,31 +136,41 @@ export default function CompanyForm() {
               type="tel"
               value={form.phoneNumber}
               onChange={handleChange}
-              placeholder="+1 (555) 000-0000"
+              placeholder="01112584545"
               required
               disabled={isPending}
-              className="h-11 border-white/[0.08] bg-white/[0.05] text-white placeholder:text-white/20 focus-visible:border-violet-500/50 focus-visible:ring-violet-500/20"
+              className="h-11  placeholder:text-white/20 focus-visible:border-violet-500/50 focus-visible:ring-violet-500/20"
             />
           </div>
 
           <div className="space-y-2">
-            <Label
-              htmlFor="purchasePerson"
-              className="flex items-center gap-1.5 text-xs font-semibold tracking-wide text-white/50 uppercase"
-            >
+            <Label className="flex items-center gap-1.5 text-xs font-semibold tracking-wide text-white/50 uppercase">
               <User className="size-3" />
               Purchase Person
             </Label>
-            <Input
-              id="purchasePerson"
-              name="purchasePerson"
-              value={form.purchasePerson}
-              onChange={handleChange}
-              placeholder="Jane Smith"
-              required
-              disabled={isPending}
-              className="h-11 border-white/[0.08] bg-white/[0.05] text-white placeholder:text-white/20 focus-visible:border-violet-500/50 focus-visible:ring-violet-500/20"
-            />
+            <DropdownMenu open={openDropdown} onOpenChange={setOpenDropdown}>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  disabled={isPending}
+                  className="h-11 w-full justify-between border-white/[0.08] bg-white/[0.05] text-white hover:bg-white/[0.08] hover:text-white"
+                >
+                  {form.purchasePerson || "Select a person"}
+                  <ChevronDown className="h-4 w-4 opacity-50" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-[var(--radix-dropdown-menu-trigger-width)] bg-black">
+                {PERSON_LIST.map((person) => (
+                  <DropdownMenuItem
+                    key={person}
+                    onClick={() => handlePersonSelect(person)}
+                    className="cursor-pointer text-violet-400"
+                  >
+                    {person}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
 
           <div className="space-y-2">
@@ -168,11 +208,11 @@ export default function CompanyForm() {
                 Saving...
               </>
             ) : (
-              'Save Entry'
+              "Save Entry"
             )}
           </Button>
         </form>
       </CardContent>
     </Card>
-  )
+  );
 }
