@@ -16,7 +16,7 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Secrt CRM",
+  title: "Supply Chain",
   description: "Company purchase contact manager",
 };
 
