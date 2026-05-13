@@ -1,7 +1,15 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Calendar, Search, Building2 } from "lucide-react";
+import { useState } from "react";
+import {
+  Calendar,
+  Search,
+  Building2,
+  Edit2,
+  Save,
+  X,
+  History,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,16 +20,31 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
-import { SimpleHeader } from "@/components/ui/simple-header";
 import { getCompanies } from "@/lib/actions/company";
-import type { ICompany } from "@/lib/models/company";
+
+type CompanyData = {
+  _id: string;
+  companyName: string;
+  phoneNumber: string;
+  purchasePerson: string;
+  notes?: string;
+  createdAt: Date;
+  notesHistory?: Array<{ notes: string; changedAt: Date }>;
+};
+
+interface CompanyWithEditState extends CompanyData {
+  isEditingNotes?: boolean;
+  editedNotes?: string;
+  showHistory?: boolean;
+}
 
 export default function PurchasePage() {
-  const [companies, setCompanies] = useState<ICompany[]>([]);
+  const [companies, setCompanies] = useState<CompanyWithEditState[]>([]);
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState(getTodayDate());
   const [searchName, setSearchName] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
 
   function getTodayDate() {
     const today = new Date();
@@ -38,7 +61,14 @@ export default function PurchasePage() {
       const result = await getCompanies(start, end, searchName);
 
       if (result.success) {
-        setCompanies(result.data);
+        setCompanies(
+          result.data.map((company: CompanyData) => ({
+            ...company,
+            isEditingNotes: false,
+            editedNotes: company.notes || "",
+            showHistory: false,
+          })),
+        );
       }
     } catch (err) {
       console.error(err);
@@ -56,6 +86,68 @@ export default function PurchasePage() {
       hour: "2-digit",
       minute: "2-digit",
     }).format(new Date(date));
+  };
+
+  const startEditingNotes = (companyId: string) => {
+    setCompanies(
+      companies.map((c) =>
+        String(c._id) === companyId
+          ? { ...c, isEditingNotes: true, editedNotes: c.notes || "" }
+          : c,
+      ),
+    );
+  };
+
+  const cancelEditingNotes = (companyId: string) => {
+    setCompanies(
+      companies.map((c) =>
+        String(c._id) === companyId
+          ? { ...c, isEditingNotes: false, editedNotes: c.notes || "" }
+          : c,
+      ),
+    );
+  };
+
+  const saveNotes = async (companyId: string, newNotes: string) => {
+    setIsEditing(true);
+    try {
+      const response = await fetch(`/api/companies/${companyId}/notes`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ notes: newNotes }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setCompanies(
+          companies.map((c) =>
+            String(c._id) === companyId
+              ? {
+                  ...c,
+                  notes: data.notes,
+                  isEditingNotes: false,
+                  notesHistory: data.notesHistory,
+                }
+              : c,
+          ),
+        );
+      } else {
+        console.error("Failed to save notes");
+      }
+    } catch (err) {
+      console.error("Failed to save notes:", err);
+    }
+    setIsEditing(false);
+  };
+
+  const toggleHistoryView = (companyId: string) => {
+    setCompanies(
+      companies.map((c) =>
+        String(c._id) === companyId ? { ...c, showHistory: !c.showHistory } : c,
+      ),
+    );
   };
 
   return (
@@ -76,7 +168,7 @@ export default function PurchasePage() {
           </div>
 
           {/* Filter Card */}
-          <Card className="mb-8 border-white/[0.07] bg-white/[0.03] shadow-none backdrop-blur-sm ring-0">
+          <Card className="mb-8 border-white/[0.07] bg-white/3 shadow-none backdrop-blur-sm ring-0">
             <CardHeader>
               <CardTitle className="text-lg font-semibold tracking-tight text-white">
                 Filter Companies
@@ -98,7 +190,7 @@ export default function PurchasePage() {
                     type="date"
                     value={startDate}
                     onChange={(e) => setStartDate(e.target.value)}
-                    className="border-white/[0.07] bg-white/[0.02] text-white placeholder:text-white/30 accent-violet-400 [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:brightness-0 [&::-webkit-calendar-picker-indicator]:invert"
+                    className="border-white/[0.07] bg-white/2 text-white placeholder:text-white/30 accent-violet-400 [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:brightness-0 [&::-webkit-calendar-picker-indicator]:invert"
                   />
                 </div>
 
@@ -112,7 +204,7 @@ export default function PurchasePage() {
                     type="date"
                     value={endDate}
                     onChange={(e) => setEndDate(e.target.value)}
-                    className="border-white/[0.07] bg-white/[0.02] text-white placeholder:text-white/30 accent-violet-400 [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:brightness-0 [&::-webkit-calendar-picker-indicator]:invert"
+                    className="border-white/[0.07] bg-white/2 text-white placeholder:text-white/30 accent-violet-400 [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:brightness-0 [&::-webkit-calendar-picker-indicator]:invert"
                   />
                 </div>
 
@@ -132,7 +224,7 @@ export default function PurchasePage() {
                         handleFilter();
                       }
                     }}
-                    className="border-white/[0.07] bg-white/[0.02] text-white placeholder:text-white/30"
+                    className="border-white/[0.07] bg-white/2 text-white placeholder:text-white/30"
                   />
                 </div>
 
@@ -152,7 +244,7 @@ export default function PurchasePage() {
                       setSearchName("");
                     }}
                     variant="outline"
-                    className="border-white/[0.07] text-white hover:bg-white/[0.05]"
+                    className="border-white/[0.07] text-white hover:bg-white/5"
                   >
                     Clear
                   </Button>
@@ -177,7 +269,7 @@ export default function PurchasePage() {
                 {companies.map((company) => (
                   <Card
                     key={String(company._id)}
-                    className="border-white/[0.07] bg-white/[0.02] shadow-none backdrop-blur-sm ring-0 hover:bg-white/[0.04] transition-colors"
+                    className="border-white/[0.07] bg-white/2 shadow-none backdrop-blur-sm ring-0 hover:bg-white/4 transition-colors"
                   >
                     <CardContent className="pt-6">
                       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -215,16 +307,122 @@ export default function PurchasePage() {
                         </div>
 
                         {/* Notes */}
-                        {company.notes && (
-                          <div className="sm:col-span-2 lg:col-span-3">
-                            <p className="text-xs font-semibold tracking-wide text-white/50 uppercase mb-1">
+                        <div className="sm:col-span-2 lg:col-span-3">
+                          <div className="flex items-center justify-between mb-3">
+                            <p className="text-xs font-semibold tracking-wide text-white/50 uppercase">
                               Notes
                             </p>
-                            <p className="text-white/70 text-sm">
-                              {company.notes}
-                            </p>
+                            <div className="flex gap-2">
+                              {company.notesHistory &&
+                                company.notesHistory.length > 0 && (
+                                  <button
+                                    onClick={() =>
+                                      toggleHistoryView(String(company._id))
+                                    }
+                                    className="p-1 text-white/40 hover:text-violet-400 transition-colors"
+                                    title="View notes history"
+                                  >
+                                    <History className="size-4" />
+                                  </button>
+                                )}
+                              {!company.isEditingNotes && (
+                                <button
+                                  onClick={() =>
+                                    startEditingNotes(String(company._id))
+                                  }
+                                  className="p-1 text-white/40 hover:text-violet-400 transition-colors"
+                                  title="Edit notes"
+                                >
+                                  <Edit2 className="size-4" />
+                                </button>
+                              )}
+                            </div>
                           </div>
-                        )}
+
+                          {company.isEditingNotes ? (
+                            <div className="space-y-3">
+                              <textarea
+                                value={company.editedNotes || ""}
+                                onChange={(e) =>
+                                  setCompanies(
+                                    companies.map((c) =>
+                                      String(c._id) === String(company._id)
+                                        ? { ...c, editedNotes: e.target.value }
+                                        : c,
+                                    ),
+                                  )
+                                }
+                                className="w-full bg-white/5 text-white placeholder:text-white/30 border border-white/[0.07] rounded p-2 text-sm focus:outline-none focus:border-violet-400/50 resize-none"
+                                rows={4}
+                                placeholder="Add or edit notes..."
+                              />
+                              <div className="flex gap-2">
+                                <Button
+                                  onClick={() =>
+                                    saveNotes(
+                                      String(company._id),
+                                      company.editedNotes || "",
+                                    )
+                                  }
+                                  className="bg-violet-600 hover:bg-violet-700 text-white flex items-center gap-1"
+                                  size="sm"
+                                >
+                                  <Save className="size-3" />
+                                  {isEditing ? "Saving..." : "Save"}
+                                </Button>
+                                <Button
+                                  onClick={() =>
+                                    cancelEditingNotes(String(company._id))
+                                  }
+                                  variant="outline"
+                                  className="border-white/[0.07] text-white hover:bg-white/5"
+                                  size="sm"
+                                >
+                                  <X className="size-3" />
+                                  Cancel
+                                </Button>
+                              </div>
+                            </div>
+                          ) : (
+                            <p className="text-white/70 text-sm">
+                              {company.notes || (
+                                <span className="text-white/40 italic">
+                                  No notes
+                                </span>
+                              )}
+                            </p>
+                          )}
+
+                          {/* Notes History */}
+                          {company.showHistory &&
+                            company.notesHistory &&
+                            company.notesHistory.length > 0 && (
+                              <div className="mt-4 pt-4 border-t border-white/[0.07]">
+                                <p className="text-xs font-semibold tracking-wide text-white/50 uppercase mb-3">
+                                  Change History
+                                </p>
+                                <div className="space-y-2 max-h-64 overflow-y-auto">
+                                  {company.notesHistory.map((history, idx) => (
+                                    <div
+                                      key={idx}
+                                      className="bg-white/2 p-3 rounded text-sm border border-white/5"
+                                    >
+                                      <p className="text-white/50 text-xs mb-1">
+                                        {formatDate(history.changedAt)}
+                                      </p>
+                                      <p className="text-white/70">
+                                        {history.notes || (
+                                          <span className="italic">
+                                            Empty notes
+                                          </span>
+                                        )}
+                                      </p>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                        </div>
 
                         {/* Date */}
                         <div className="sm:col-span-2 lg:col-span-3">
@@ -242,7 +440,7 @@ export default function PurchasePage() {
               </div>
             </div>
           ) : (
-            <Card className="border-white/[0.07] bg-white/[0.02] shadow-none backdrop-blur-sm ring-0">
+            <Card className="border-white/[0.07] bg-white/2 shadow-none backdrop-blur-sm ring-0">
               <CardContent className="pt-12 pb-12 text-center">
                 <Building2 className="mx-auto size-12 text-white/20 mb-4" />
                 <p className="text-white/60 mb-2">No companies found</p>

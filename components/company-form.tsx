@@ -30,14 +30,14 @@ import {
 import { saveCompany, type CompanyFormData } from "@/lib/actions/company";
 
 const PERSON_LIST = [
-  "Wasfy",
-  "Nabil",
-  "Yasmin",
+  "وصفى",
+  "نبيل",
+  "ياسمين",
   "Aya",
-  "Wafaa",
-  "Essam",
-  "Hamouda",
-  "Zaghlol",
+  "وفاء",
+  "عصام",
+  "حموده",
+  "زغلول",
 ];
 
 const INITIAL_STATE: CompanyFormData = {
