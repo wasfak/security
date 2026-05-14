@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { toast } from "sonner";
 import {
   Calendar,
   Search,
@@ -43,6 +44,7 @@ export default function PurchasePage() {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState(getTodayDate());
   const [searchName, setSearchName] = useState("");
+  const [smartSearchName, setSmartSearchName] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
 
@@ -58,7 +60,12 @@ export default function PurchasePage() {
       const start = startDate ? new Date(startDate) : undefined;
       const end = endDate ? new Date(endDate) : undefined;
 
-      const result = await getCompanies(start, end, searchName);
+      const result = await getCompanies(
+        start,
+        end,
+        searchName,
+        smartSearchName,
+      );
 
       if (result.success) {
         setCompanies(
@@ -69,9 +76,20 @@ export default function PurchasePage() {
             showHistory: false,
           })),
         );
+        toast.success("Search complete", {
+          description: `Found ${result.data.length} company/companies.`,
+        });
+      } else {
+        toast.error("Search failed", {
+          description:
+            result.error || "Failed to fetch companies. Please try again.",
+        });
       }
     } catch (err) {
       console.error(err);
+      toast.error("Unexpected error", {
+        description: "Something went wrong during search. Please try again.",
+      });
     } finally {
       setIsLoading(false);
     }
@@ -133,11 +151,21 @@ export default function PurchasePage() {
               : c,
           ),
         );
+        toast.success("Notes saved", {
+          description: "Your notes have been updated successfully.",
+        });
       } else {
-        console.error("Failed to save notes");
+        const errorData = await response.json();
+        toast.error("Failed to save notes", {
+          description: errorData.error || "Please try again.",
+        });
       }
     } catch (err) {
       console.error("Failed to save notes:", err);
+      toast.error("Unexpected error", {
+        description:
+          "Something went wrong while saving your notes. Please try again.",
+      });
     }
     setIsEditing(false);
   };
@@ -174,15 +202,15 @@ export default function PurchasePage() {
                 Filter Companies
               </CardTitle>
               <CardDescription className="text-white/40">
-                Use date range and company name to narrow your search
+                Use date range and search to narrow your results
               </CardDescription>
             </CardHeader>
 
             <CardContent>
-              <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
                 {/* Start Date */}
                 <div className="">
-                  <Label className="flex items-center gap-1.5 text-xs font-semibold tracking-wide text-white/50 uppercase mb-2">
+                  <Label className="flex items-center gap-1.5 text-xs font-semibold tracking-wide text-white uppercase mb-2">
                     <Calendar className="size-3 text-violet-400" />
                     From Date
                   </Label>
@@ -196,7 +224,7 @@ export default function PurchasePage() {
 
                 {/* End Date */}
                 <div>
-                  <Label className="flex items-center gap-1.5 text-xs font-semibold tracking-wide text-white/50 uppercase mb-2">
+                  <Label className="flex items-center gap-1.5 text-xs font-semibold tracking-wide text-white uppercase mb-2">
                     <Calendar className="size-3 text-violet-400" />
                     To Date
                   </Label>
@@ -210,13 +238,13 @@ export default function PurchasePage() {
 
                 {/* Search by Name */}
                 <div>
-                  <Label className="flex items-center gap-1.5 text-xs font-semibold tracking-wide text-white/50 uppercase mb-2">
+                  <Label className="flex items-center gap-1.5 text-xs font-semibold tracking-wide text-white uppercase mb-2">
                     <Search className="size-3 text-violet-400" />
-                    Company Name
+                    Search by Name
                   </Label>
                   <Input
                     type="text"
-                    placeholder="Search..."
+                    placeholder='e.g., "mehan"'
                     value={searchName}
                     onChange={(e) => setSearchName(e.target.value)}
                     onKeyDown={(e) => {
@@ -226,10 +254,34 @@ export default function PurchasePage() {
                     }}
                     className="border-white/[0.07] bg-white/2 text-white placeholder:text-white/30"
                   />
+                  <p className="text-xs text-white/40 mt-1">Standard search</p>
+                </div>
+
+                {/* Smart Search by Name */}
+                <div>
+                  <Label className="flex items-center gap-1.5 text-xs font-semibold tracking-wide text-white uppercase mb-2">
+                    <Search className="size-3 text-violet-400" />
+                    Smart Search
+                  </Label>
+                  <Input
+                    type="text"
+                    placeholder='e.g., "m*e*h*a*"'
+                    value={smartSearchName}
+                    onChange={(e) => setSmartSearchName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        handleFilter();
+                      }
+                    }}
+                    className="border-white/[0.07] bg-white/2 text-white placeholder:text-white/30"
+                  />
+                  <p className="text-xs text-white/40 mt-1">
+                    Use *: m*e*h*a* finds letters in company name
+                  </p>
                 </div>
 
                 {/* Search Button */}
-                <div className="sm:col-span-2 lg:col-span-3 flex gap-2">
+                <div className="sm:col-span-2 lg:col-span-4 flex gap-2">
                   <Button
                     onClick={handleFilter}
                     disabled={isLoading}
@@ -242,6 +294,7 @@ export default function PurchasePage() {
                       setStartDate("");
                       setEndDate(getTodayDate());
                       setSearchName("");
+                      setSmartSearchName("");
                     }}
                     variant="outline"
                     className="border-white/[0.07] text-white hover:bg-white/5"
@@ -275,7 +328,7 @@ export default function PurchasePage() {
                       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                         {/* Company Name */}
                         <div>
-                          <p className="text-xs font-semibold tracking-wide text-white/50 uppercase mb-1">
+                          <p className="text-xs font-semibold tracking-wide text-white uppercase mb-1">
                             Company
                           </p>
                           <div className="flex items-center gap-2">
@@ -288,7 +341,7 @@ export default function PurchasePage() {
 
                         {/* Phone */}
                         <div>
-                          <p className="text-xs font-semibold tracking-wide text-white/50 uppercase mb-1">
+                          <p className="text-xs font-semibold tracking-wide text-white uppercase mb-1">
                             Phone
                           </p>
                           <p className="text-white font-mono">
@@ -298,7 +351,7 @@ export default function PurchasePage() {
 
                         {/* Purchase Person */}
                         <div>
-                          <p className="text-xs font-semibold tracking-wide text-white/50 uppercase mb-1">
+                          <p className="text-xs font-semibold tracking-wide text-white uppercase mb-1">
                             Purchase Person
                           </p>
                           <p className="text-white font-mono">
@@ -309,7 +362,7 @@ export default function PurchasePage() {
                         {/* Notes */}
                         <div className="sm:col-span-2 lg:col-span-3">
                           <div className="flex items-center justify-between mb-3">
-                            <p className="text-xs font-semibold tracking-wide text-white/50 uppercase">
+                            <p className="text-xs font-semibold tracking-wide text-white uppercase">
                               Notes
                             </p>
                             <div className="flex gap-2">
@@ -322,7 +375,7 @@ export default function PurchasePage() {
                                     className="p-1 text-white/40 hover:text-violet-400 transition-colors"
                                     title="View notes history"
                                   >
-                                    <History className="size-4" />
+                                    <History className="size-8 text-white" />
                                   </button>
                                 )}
                               {!company.isEditingNotes && (
@@ -333,7 +386,7 @@ export default function PurchasePage() {
                                   className="p-1 text-white/40 hover:text-violet-400 transition-colors"
                                   title="Edit notes"
                                 >
-                                  <Edit2 className="size-4" />
+                                  <Edit2 className="size-8 text-white" />
                                 </button>
                               )}
                             </div>
@@ -398,7 +451,7 @@ export default function PurchasePage() {
                             company.notesHistory &&
                             company.notesHistory.length > 0 && (
                               <div className="mt-4 pt-4 border-t border-white/[0.07]">
-                                <p className="text-xs font-semibold tracking-wide text-white/50 uppercase mb-3">
+                                <p className="text-xs font-semibold tracking-wide text-white uppercase mb-3">
                                   Change History
                                 </p>
                                 <div className="space-y-2 max-h-64 overflow-y-auto">
@@ -407,7 +460,7 @@ export default function PurchasePage() {
                                       key={idx}
                                       className="bg-white/2 p-3 rounded text-sm border border-white/5"
                                     >
-                                      <p className="text-white/50 text-xs mb-1">
+                                      <p className="text-white text-xs mb-1">
                                         {formatDate(history.changedAt)}
                                       </p>
                                       <p className="text-white/70">
@@ -426,7 +479,7 @@ export default function PurchasePage() {
 
                         {/* Date */}
                         <div className="sm:col-span-2 lg:col-span-3">
-                          <p className="text-xs font-semibold tracking-wide text-white/50 uppercase mb-1">
+                          <p className="text-xs font-semibold tracking-wide text-white uppercase mb-1">
                             Added On
                           </p>
                           <p className="text-white/60 text-sm font-mono">

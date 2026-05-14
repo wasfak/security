@@ -69,6 +69,7 @@ export default function CompanyForm() {
 
     try {
       const result = await saveCompany(form);
+      console.log("[handleSubmit] Result:", result);
 
       if (result.success) {
         toast.success("Entry saved!", {
@@ -76,13 +77,21 @@ export default function CompanyForm() {
         });
         setForm(INITIAL_STATE);
       } else {
+        const errorMsg = result.error || "Failed to save. Please try again.";
+        console.log("[handleSubmit] Showing error toast:", errorMsg);
         toast.error("Save failed", {
-          description: result.error,
+          description: errorMsg,
         });
       }
-    } catch {
+    } catch (err) {
+      console.error("Unexpected catch error:", err);
+      const errorMessage =
+        err instanceof Error
+          ? err.message
+          : "Something went wrong. Please try again.";
+      console.log("[handleSubmit] Showing catch error toast:", errorMessage);
       toast.error("Unexpected error", {
-        description: "Something went wrong. Please try again.",
+        description: errorMessage,
       });
     } finally {
       setIsPending(false);
@@ -90,7 +99,7 @@ export default function CompanyForm() {
   }
 
   return (
-    <Card className="w-full border-white/[0.07] bg-white/[0.03] shadow-none backdrop-blur-sm ring-0">
+    <Card className="w-full border-white/7 bg-white/3 shadow-none backdrop-blur-sm ring-0">
       <CardHeader className="pb-6">
         <CardTitle className="text-xl font-semibold tracking-tight text-white">
           New Company Entry
@@ -118,7 +127,7 @@ export default function CompanyForm() {
               placeholder="Acme Corporation"
               required
               disabled={isPending}
-              className="h-11 border-white/[0.08] bg-white/[0.05] text-white placeholder:text-white/20 focus-visible:border-violet-500/50 focus-visible:ring-violet-500/20"
+              className="h-11 border-white/8 bg-white/5 text-white placeholder:text-white/20 focus-visible:border-violet-500/50 focus-visible:ring-violet-500/20"
             />
           </div>
 
@@ -153,13 +162,13 @@ export default function CompanyForm() {
                 <Button
                   variant="outline"
                   disabled={isPending}
-                  className="h-11 w-full justify-between border-white/[0.08] bg-white/[0.05] text-white hover:bg-white/[0.08] hover:text-white"
+                  className="h-11 w-full justify-between border-white/8 bg-white/5 text-white hover:bg-white/8 hover:text-white"
                 >
                   {form.purchasePerson || "Select a person"}
                   <ChevronDown className="h-4 w-4 opacity-50" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-[var(--radix-dropdown-menu-trigger-width)] bg-black">
+              <DropdownMenuContent className="w-(--radix-dropdown-menu-trigger-width) bg-black">
                 {PERSON_LIST.map((person) => (
                   <DropdownMenuItem
                     key={person}
@@ -192,7 +201,7 @@ export default function CompanyForm() {
               placeholder="Any relevant details about this purchase contact..."
               rows={4}
               disabled={isPending}
-              className="resize-none border-white/[0.08] bg-white/[0.05] text-white placeholder:text-white/20 focus-visible:border-violet-500/50 focus-visible:ring-violet-500/20"
+              className="resize-none border-white/8 bg-white/5 text-white placeholder:text-white/20 focus-visible:border-violet-500/50 focus-visible:ring-violet-500/20"
             />
           </div>
 
@@ -200,7 +209,7 @@ export default function CompanyForm() {
             type="submit"
             size="lg"
             disabled={isPending}
-            className="mt-2 w-full gap-2 h-11 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 border-0 text-white shadow-lg shadow-violet-500/20 hover:shadow-violet-500/35 transition-all duration-200"
+            className="mt-2 w-full gap-2 h-11 bg-linear-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 border-0 text-white shadow-lg shadow-violet-500/20 hover:shadow-violet-500/35 transition-all duration-200"
           >
             {isPending ? (
               <>

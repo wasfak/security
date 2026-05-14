@@ -1,82 +1,112 @@
-import mongoose from 'mongoose'
+import mongoose from "mongoose";
 
-const MONGODB_URI = process.env.MONGODB_URI
+const MONGODB_URI = process.env.MONGODB_URI;
 
 if (!MONGODB_URI) {
   throw new Error(
-    'Please define the MONGODB_URI environment variable in .env.local'
-  )
+    "Please define the MONGODB_URI environment variable in .env.local",
+  );
 }
 
 declare global {
   // eslint-disable-next-line no-var
   var _mongooseCache:
     | {
-        conn: typeof mongoose | null
-        promise: Promise<typeof mongoose> | null
+        conn: typeof mongoose | null;
+        promise: Promise<typeof mongoose> | null;
       }
-    | undefined
+    | undefined;
 }
 
-const cached = globalThis._mongooseCache ?? { conn: null, promise: null }
-globalThis._mongooseCache = cached
+const cached = globalThis._mongooseCache ?? { conn: null, promise: null };
+globalThis._mongooseCache = cached;
 
-type DohAnswer = { type: number; data: string }
+type DohAnswer = { type: number; data: string };
 
 async function dohQuery(name: string, type: string) {
   const res = await fetch(
     `https://cloudflare-dns.com/dns-query?name=${encodeURIComponent(name)}&type=${type}`,
-    { headers: { Accept: 'application/dns-json' } }
-  )
-  return res.json() as Promise<{ Answer?: DohAnswer[] }>
+    { headers: { Accept: "application/dns-json" } },
+  );
+  return res.json() as Promise<{ Answer?: DohAnswer[] }>;
 }
 
 // Resolves mongodb+srv:// to a direct mongodb:// URI using Cloudflare DoH,
 // bypassing broken local DNS that refuses SRV queries.
 async function buildDirectUri(srvUri: string): Promise<string> {
-  const url = new URL(srvUri)
+  const url = new URL(srvUri);
 
-  const srvData = await dohQuery(`_mongodb._tcp.${url.hostname}`, 'SRV')
+  const srvData = await dohQuery(`_mongodb._tcp.${url.hostname}`, "SRV");
   const hosts = (srvData.Answer ?? [])
-    .filter(r => r.type === 33)
-    .map(r => {
-      const parts = r.data.trim().split(/\s+/)
-      const port = parts[2]
-      const target = parts[3].replace(/\.$/, '')
-      return `${target}:${port}`
-    })
+    .filter((r) => r.type === 33)
+    .map((r) => {
+      const parts = r.data.trim().split(/\s+/);
+      const port = parts[2];
+      const target = parts[3].replace(/\.$/, "");
+      return `${target}:${port}`;
+    });
 
-  if (!hosts.length) throw new Error('DoH returned no SRV records')
+  if (!hosts.length) throw new Error("DoH returned no SRV records");
 
   // TXT record carries authSource and replicaSet for Atlas
-  let options = 'tls=true'
+  let options = "tls=true";
   try {
-    const txtData = await dohQuery(url.hostname, 'TXT')
-    const txt = txtData.Answer?.find(r => r.type === 16)
-    if (txt) options = txt.data.replace(/"/g, '') + '&tls=true'
+    const txtData = await dohQuery(url.hostname, "TXT");
+    const txt = txtData.Answer?.find((r) => r.type === 16);
+    if (txt) options = txt.data.replace(/"/g, "") + "&tls=true";
   } catch {
     // fall back to tls=true only
   }
 
-  const appName = url.searchParams.get('appName')
-  if (appName) options += `&appName=${encodeURIComponent(appName)}`
+  const appName = url.searchParams.get("appName");
+  if (appName) options += `&appName=${encodeURIComponent(appName)}`;
 
-  const auth = url.username ? `${url.username}:${url.password}@` : ''
-  return `mongodb://${auth}${hosts.join(',')}${url.pathname}?${options}`
+  const auth = url.username ? `${url.username}:${url.password}@` : "";
+  return `mongodb://${auth}${hosts.join(",")}${url.pathname}?${options}`;
 }
 
 export async function dbConnect(): Promise<typeof mongoose> {
-  if (cached.conn) return cached.conn
+  if (cached.conn) return cached.conn;
 
   if (!cached.promise) {
     cached.promise = (async () => {
-      const uri = MONGODB_URI!.startsWith('mongodb+srv://')
+      const uri = MONGODB_URI!.startsWith("mongodb+srv://")
         ? await buildDirectUri(MONGODB_URI!)
-        : MONGODB_URI!
-      return mongoose.connect(uri, { bufferCommands: false })
-    })()
+        : MONGODB_URI!;
+      const conn = await mongoose.connect(uri, { bufferCommands: false });
+
+      try {
+        // Sync indexes to ensure unique constraints are applied
+        // This is important when you add new indexes to existing schemas
+        await conn.connection.syncIndexes();
+      } catch (err: any) {
+        // If there's an E11000 error during index sync, it means there are duplicates
+        // Drop the collection and recreate it with proper indexes
+        if (
+          err.message.includes("E11000") ||
+          err.message.includes("duplicate key")
+        ) {
+          console.warn(
+            "[dbConnect] Duplicate key detected. Dropping collection to rebuild with unique index...",
+          );
+          try {
+            await conn.connection.collection("companies").drop();
+            console.log("[dbConnect] Collection dropped successfully");
+            // Recreate indexes
+            await conn.connection.syncIndexes();
+            console.log("[dbConnect] Indexes recreated successfully");
+          } catch (dropErr) {
+            console.error("[dbConnect] Error dropping collection:", dropErr);
+          }
+        } else {
+          throw err;
+        }
+      }
+
+      return conn;
+    })();
   }
 
-  cached.conn = await cached.promise
-  return cached.conn
+  cached.conn = await cached.promise;
+  return cached.conn;
 }

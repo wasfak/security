@@ -28,15 +28,21 @@ export async function PUT(
       return NextResponse.json({ error: "Company not found" }, { status: 404 });
     }
 
-    // Update notes and add to history
-    company.notes = notes || "";
+    // Initialize history if it doesn't exist
     if (!company.notesHistory) {
       company.notesHistory = [];
     }
-    company.notesHistory.push({
-      notes: notes || "",
-      changedAt: new Date(),
-    });
+
+    // Add the CURRENT note to history before updating (preserves all changes)
+    if (company.notes !== undefined && company.notes !== null) {
+      company.notesHistory.push({
+        notes: company.notes,
+        changedAt: new Date(),
+      });
+    }
+
+    // Update to the new note
+    company.notes = notes || "";
 
     await company.save();
 
@@ -44,8 +50,7 @@ export async function PUT(
       notes: company.notes,
       notesHistory: company.notesHistory,
     });
-  } catch (error) {
-    console.error("Error updating notes:", error);
+  } catch {
     return NextResponse.json(
       { error: "Failed to update notes" },
       { status: 500 },

@@ -13,6 +13,7 @@ const CompanySchema = new Schema<ICompany>(
   {
     companyName: {
       type: String,
+      unique: true,
       required: [true, "Company name is required"],
       trim: true,
     },

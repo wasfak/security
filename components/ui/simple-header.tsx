@@ -1,7 +1,7 @@
 "use client";
 import React from "react";
 import { usePathname } from "next/navigation";
-import { Rocket } from "lucide-react";
+import { Brain } from "lucide-react";
 import { Sheet, SheetContent, SheetFooter } from "@/components/ui/sheet";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { MenuToggle } from "@/components/ui/menu-toggle";
@@ -26,7 +26,7 @@ export function SimpleHeader() {
     <header className="bg-background/95 supports-[backdrop-filter]:bg-background/80 sticky top-0 z-50 w-full border-b backdrop-blur-lg">
       <nav className="mx-auto flex h-14 w-full max-w-4xl items-center justify-between px-4">
         <div className="flex items-center gap-2">
-          <Rocket className="size-6" />
+          <Brain className="size-6" />
           <Link
             href="/"
             className="font-mono text-lg font-bold tracking-[0.1em] text-violet-400"
