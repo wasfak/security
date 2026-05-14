@@ -49,6 +49,7 @@ const INITIAL_STATE: CompanyFormData = {
   companyName: "",
   phoneNumber: "",
   purchasePerson: "",
+  companyRepresentative: "",
   notes: "",
 };
 
@@ -135,6 +136,25 @@ export default function CompanyForm() {
               className="h-11 border-white/8 bg-white/5 text-white placeholder:text-white/20 focus-visible:border-violet-500/50 focus-visible:ring-violet-500/20"
             />
           </div>
+          <div className="space-y-2">
+            <Label
+              htmlFor="companyRepresentative"
+              className="flex items-center gap-1.5 text-xs font-semibold tracking-wide text-white/50 uppercase"
+            >
+              <User className="size-3" />
+              Company Representative
+            </Label>
+            <Input
+              id="companyRepresentative"
+              name="companyRepresentative"
+              value={form.companyRepresentative}
+              onChange={handleChange}
+              placeholder="John Doe"
+              required
+              disabled={isPending}
+              className="h-11 border-white/8 bg-white/5 text-white placeholder:text-white/20 focus-visible:border-violet-500/50 focus-visible:ring-violet-500/20"
+            />
+          </div>
 
           <div className="space-y-2">
             <Label
@@ -150,10 +170,10 @@ export default function CompanyForm() {
               type="tel"
               value={form.phoneNumber}
               onChange={handleChange}
-              placeholder="01112584545"
+              placeholder="01112584444"
               required
               disabled={isPending}
-              className="h-11  placeholder:text-white/20 focus-visible:border-violet-500/50 focus-visible:ring-violet-500/20"
+              className="h-11 border-white/8 bg-white/5 text-white placeholder:text-white/20 focus-visible:border-violet-500/50 focus-visible:ring-violet-500/20"
             />
           </div>
 
@@ -186,6 +206,8 @@ export default function CompanyForm() {
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
+
+          
 
           <div className="space-y-2">
             <Label

@@ -5,6 +5,7 @@ export interface ICompany extends Document {
   phoneNumber: string;
   newOrder: boolean;
   purchasePerson: string;
+  companyRepresentative: string;
   notes?: string;
   notesHistory?: Array<{ notes: string; changedAt: Date }>;
   createdAt: Date;
@@ -30,6 +31,11 @@ const CompanySchema = new Schema<ICompany>(
     purchasePerson: {
       type: String,
       required: [true, "Purchase person name is required"],
+      trim: true,
+    },
+    companyRepresentative: {
+      type: String,
+      required: [true, "Company representative is required"],
       trim: true,
     },
     notes: {

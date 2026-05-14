@@ -28,6 +28,7 @@ type CompanyData = {
   companyName: string;
   phoneNumber: string;
   purchasePerson: string;
+  companyRepresentative: string;
   notes?: string;
   createdAt: Date;
   notesHistory?: Array<{ notes: string; changedAt: Date }>;
@@ -35,8 +36,10 @@ type CompanyData = {
 
 interface CompanyWithEditState extends CompanyData {
   isEditingNotes?: boolean;
+  isAddingNote?: boolean;
   editedNotes?: string;
-  showHistory?: boolean;
+  noteMode?: "edit" | "add";
+  editingHistoryIndex?: number | null;
 }
 
 export default function PurchasePage() {
@@ -50,6 +53,7 @@ export default function PurchasePage() {
 
   function getTodayDate() {
     const today = new Date();
+    
     return today.toISOString().split("T")[0];
   }
 
@@ -72,8 +76,10 @@ export default function PurchasePage() {
           result.data.map((company: CompanyData) => ({
             ...company,
             isEditingNotes: false,
+            isAddingNote: false,
             editedNotes: company.notes || "",
-            showHistory: false,
+            noteMode: undefined,
+            editingHistoryIndex: null,
           })),
         );
         toast.success("Search complete", {
@@ -110,7 +116,27 @@ export default function PurchasePage() {
     setCompanies(
       companies.map((c) =>
         String(c._id) === companyId
-          ? { ...c, isEditingNotes: true, editedNotes: c.notes || "" }
+          ? {
+              ...c,
+              isEditingNotes: true,
+              editedNotes: c.notes || "",
+              noteMode: "edit",
+            }
+          : c,
+      ),
+    );
+  };
+
+  const startAddingNote = (companyId: string) => {
+    setCompanies(
+      companies.map((c) =>
+        String(c._id) === companyId
+          ? {
+              ...c,
+              isEditingNotes: true,
+              editedNotes: "",
+              noteMode: "add",
+            }
           : c,
       ),
     );
@@ -120,13 +146,46 @@ export default function PurchasePage() {
     setCompanies(
       companies.map((c) =>
         String(c._id) === companyId
-          ? { ...c, isEditingNotes: false, editedNotes: c.notes || "" }
+          ? {
+              ...c,
+              isEditingNotes: false,
+              editedNotes: c.notes || "",
+              noteMode: undefined,
+            }
           : c,
       ),
     );
   };
 
-  const saveNotes = async (companyId: string, newNotes: string) => {
+  const startEditingHistory = (companyId: string, historyIndex: number, historyNote: string) => {
+    setCompanies(
+      companies.map((c) =>
+        String(c._id) === companyId
+          ? {
+              ...c,
+              editingHistoryIndex: historyIndex,
+              editedNotes: historyNote,
+            }
+          : c,
+      ),
+    );
+  };
+
+  const cancelEditingHistory = (companyId: string) => {
+    setCompanies(
+      companies.map((c) =>
+        String(c._id) === companyId
+          ? {
+              ...c,
+              editingHistoryIndex: null,
+              editedNotes: "",
+            }
+          : c,
+      ),
+    );
+  };
+
+  const saveHistoryNote = async (companyId: string, historyIndex: number, editedNote: string) => {
     setIsEditing(true);
     try {
       const response = await fetch(`/api/companies/${companyId}/notes`, {
@@ -134,7 +193,52 @@ export default function PurchasePage() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ notes: newNotes }),
+        body: JSON.stringify({ notes: editedNote, historyIndex }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setCompanies(
+          companies.map((c) =>
+            String(c._id) === companyId
+              ? {
+                  ...c,
+                  notes: data.notes,
+                  editingHistoryIndex: null,
+                  editedNotes: "",
+                  notesHistory: data.notesHistory,
+                }
+              : c,
+          ),
+        );
+        toast.success("Note updated", {
+          description: "Your changes have been saved successfully.",
+        });
+      } else {
+        const errorData = await response.json();
+        toast.error("Failed to save note", {
+          description: errorData.error || "Please try again.",
+        });
+      }
+    } catch (err) {
+      console.error("Failed to save note:", err);
+      toast.error("Unexpected error", {
+        description:
+          "Something went wrong while saving your note. Please try again.",
+      });
+    }
+    setIsEditing(false);
+  };
+
+  const saveNotes = async (companyId: string, newNotes: string, mode: "edit" | "add" = "edit") => {
+    setIsEditing(true);
+    try {
+      const response = await fetch(`/api/companies/${companyId}/notes`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ notes: newNotes, isNewNote: mode === "add" }),
       });
 
       if (response.ok) {
@@ -146,13 +250,15 @@ export default function PurchasePage() {
                   ...c,
                   notes: data.notes,
                   isEditingNotes: false,
+                  noteMode: undefined,
                   notesHistory: data.notesHistory,
                 }
               : c,
           ),
         );
-        toast.success("Notes saved", {
-          description: "Your notes have been updated successfully.",
+        const actionText = mode === "add" ? "Note added" : "Note updated";
+        toast.success(actionText, {
+          description: "Your changes have been saved successfully.",
         });
       } else {
         const errorData = await response.json();
@@ -168,14 +274,6 @@ export default function PurchasePage() {
       });
     }
     setIsEditing(false);
-  };
-
-  const toggleHistoryView = (companyId: string) => {
-    setCompanies(
-      companies.map((c) =>
-        String(c._id) === companyId ? { ...c, showHistory: !c.showHistory } : c,
-      ),
-    );
   };
 
   return (
@@ -359,6 +457,16 @@ export default function PurchasePage() {
                           </p>
                         </div>
 
+                        {/* Company Representative */}
+                        <div>
+                          <p className="text-xs font-semibold tracking-wide text-white uppercase mb-1">
+                            Company Representative
+                          </p>
+                          <p className="text-white font-mono">
+                            {company.companyRepresentative}
+                          </p>
+                        </div>
+
                         {/* Notes */}
                         <div className="sm:col-span-2 lg:col-span-3">
                           <div className="flex items-center justify-between mb-3">
@@ -366,34 +474,38 @@ export default function PurchasePage() {
                               Notes
                             </p>
                             <div className="flex gap-2">
-                              {company.notesHistory &&
-                                company.notesHistory.length > 0 && (
+                              {!company.isEditingNotes && (
+                                <>
                                   <button
                                     onClick={() =>
-                                      toggleHistoryView(String(company._id))
+                                      startEditingNotes(String(company._id))
                                     }
                                     className="p-1 text-white/40 hover:text-violet-400 transition-colors"
-                                    title="View notes history"
+                                    title="Edit current note"
                                   >
-                                    <History className="size-8 text-white" />
+                                    <Edit2 className="size-4 text-white" />
                                   </button>
-                                )}
-                              {!company.isEditingNotes && (
-                                <button
-                                  onClick={() =>
-                                    startEditingNotes(String(company._id))
-                                  }
-                                  className="p-1 text-white/40 hover:text-violet-400 transition-colors"
-                                  title="Edit notes"
-                                >
-                                  <Edit2 className="size-8 text-white" />
-                                </button>
+                                  <button
+                                    onClick={() =>
+                                      startAddingNote(String(company._id))
+                                    }
+                                    className="px-2 py-1 text-xs font-semibold text-white/60 hover:text-violet-400 transition-colors border border-white/20 rounded hover:border-violet-400/50"
+                                    title="Add a new note"
+                                  >
+                                    + Add
+                                  </button>
+                                </>
                               )}
                             </div>
                           </div>
 
                           {company.isEditingNotes ? (
                             <div className="space-y-3">
+                              <div className="bg-white/2 p-2 rounded text-xs text-white/50 border border-white/10 mb-2">
+                                {company.noteMode === "add"
+                                  ? "Adding a new note"
+                                  : "Editing current note"}
+                              </div>
                               <textarea
                                 value={company.editedNotes || ""}
                                 onChange={(e) =>
@@ -407,7 +519,7 @@ export default function PurchasePage() {
                                 }
                                 className="w-full bg-white/5 text-white placeholder:text-white/30 border border-white/[0.07] rounded p-2 text-sm focus:outline-none focus:border-violet-400/50 resize-none"
                                 rows={4}
-                                placeholder="Add or edit notes..."
+                                placeholder="Enter your note..."
                               />
                               <div className="flex gap-2">
                                 <Button
@@ -415,6 +527,7 @@ export default function PurchasePage() {
                                     saveNotes(
                                       String(company._id),
                                       company.editedNotes || "",
+                                      company.noteMode || "edit",
                                     )
                                   }
                                   className="bg-violet-600 hover:bg-violet-700 text-white flex items-center gap-1"
@@ -437,44 +550,112 @@ export default function PurchasePage() {
                               </div>
                             </div>
                           ) : (
-                            <p className="text-white/70 text-sm">
-                              {company.notes || (
-                                <span className="text-white/40 italic">
-                                  No notes
-                                </span>
-                              )}
-                            </p>
-                          )}
-
-                          {/* Notes History */}
-                          {company.showHistory &&
-                            company.notesHistory &&
-                            company.notesHistory.length > 0 && (
-                              <div className="mt-4 pt-4 border-t border-white/[0.07]">
-                                <p className="text-xs font-semibold tracking-wide text-white uppercase mb-3">
-                                  Change History
-                                </p>
-                                <div className="space-y-2 max-h-64 overflow-y-auto">
-                                  {company.notesHistory.map((history, idx) => (
-                                    <div
-                                      key={idx}
-                                      className="bg-white/2 p-3 rounded text-sm border border-white/5"
-                                    >
-                                      <p className="text-white text-xs mb-1">
-                                        {formatDate(history.changedAt)}
-                                      </p>
-                                      <p className="text-white/70">
-                                        {history.notes || (
-                                          <span className="italic">
-                                            Empty notes
-                                          </span>
-                                        )}
-                                      </p>
-                                    </div>
-                                  ))}
+                            <div className="space-y-2 max-h-96 overflow-y-auto">
+                              {/* Current Note */}
+                              {company.notes && (
+                                <div className="bg-white/2 p-3 rounded text-sm border border-white/5">
+                                  <p className="text-white/40 text-xs mb-1">
+                                    Current
+                                  </p>
+                                  <p className="text-white/70">
+                                    {company.notes}
+                                  </p>
                                 </div>
-                              </div>
-                            )}
+                              )}
+
+                              {/* Notes History */}
+                              {company.notesHistory &&
+                                company.notesHistory.length > 0 && (
+                                  <>
+                                    {company.notesHistory.map((history, idx) => (
+                                      <div
+                                        key={idx}
+                                        className="bg-white/2 p-3 rounded text-sm border border-white/5"
+                                      >
+                                        {company.editingHistoryIndex === idx ? (
+                                          <div className="space-y-2">
+                                            <textarea
+                                              value={company.editedNotes || ""}
+                                              onChange={(e) =>
+                                                setCompanies(
+                                                  companies.map((c) =>
+                                                    String(c._id) === String(company._id)
+                                                      ? { ...c, editedNotes: e.target.value }
+                                                      : c,
+                                                  ),
+                                                )
+                                              }
+                                              className="w-full bg-white/5 text-white placeholder:text-white/30 border border-white/[0.07] rounded p-2 text-xs focus:outline-none focus:border-violet-400/50 resize-none"
+                                              rows={3}
+                                            />
+                                            <div className="flex gap-2">
+                                              <button
+                                                onClick={() =>
+                                                  saveHistoryNote(
+                                                    String(company._id),
+                                                    idx,
+                                                    company.editedNotes || "",
+                                                  )
+                                                }
+                                                className="px-2 py-1 text-xs bg-violet-600 hover:bg-violet-700 text-white rounded flex items-center gap-1"
+                                              >
+                                                <Save className="size-3" />
+                                                {isEditing ? "Saving..." : "Save"}
+                                              </button>
+                                              <button
+                                                onClick={() =>
+                                                  cancelEditingHistory(String(company._id))
+                                                }
+                                                className="px-2 py-1 text-xs border border-white/[0.07] text-white hover:bg-white/5 rounded flex items-center gap-1"
+                                              >
+                                                <X className="size-3" />
+                                                Cancel
+                                              </button>
+                                            </div>
+                                          </div>
+                                        ) : (
+                                          <>
+                                            <div className="flex items-center justify-between mb-2">
+                                              <p className="text-white/40 text-xs">
+                                                {formatDate(history.changedAt)}
+                                              </p>
+                                              <button
+                                                onClick={() =>
+                                                  startEditingHistory(
+                                                    String(company._id),
+                                                    idx,
+                                                    history.notes,
+                                                  )
+                                                }
+                                                className="p-1 text-white/40 hover:text-violet-400 transition-colors"
+                                                title="Edit this note"
+                                              >
+                                                <Edit2 className="size-3" />
+                                              </button>
+                                            </div>
+                                            <p className="text-white/70">
+                                              {history.notes || (
+                                                <span className="italic">
+                                                  Empty notes
+                                                </span>
+                                              )}
+                                            </p>
+                                          </>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </>
+                                )}
+
+                              {!company.notes &&
+                                (!company.notesHistory ||
+                                  company.notesHistory.length === 0) && (
+                                  <p className="text-white/40 italic text-sm">
+                                    No notes
+                                  </p>
+                                )}
+                            </div>
+                          )}
                         </div>
 
                         {/* Date */}

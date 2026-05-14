@@ -11,6 +11,10 @@ const CompanySchema = z.object({
     .string()
     .min(1, "Purchase person name is required")
     .max(200),
+  companyRepresentative: z
+    .string()
+    .min(1, "Company representative is required")
+    .max(200),
   notes: z.string().max(2000).optional(),
 });
 
@@ -61,6 +65,8 @@ export async function saveCompany(
     return { success: true };
   } catch (err: unknown) {
     const error = err as Record<string, unknown>;
+    console.error("[saveCompany] Error:", error);
+    
     // Handle duplicate key error (unique constraint violation)
     if (error.code === 11000 || (error.message as string)?.includes("E11000")) {
       return {
@@ -116,10 +122,10 @@ export async function saveCompany(
       };
     }
 
-    // Return user-friendly generic error
+    // Return user-friendly generic error with actual error message for debugging
     return {
       success: false,
-      error: "Failed to save company. Please try again.",
+      error: (error.message as string) || "Failed to save company. Please try again.",
     };
   }
 }

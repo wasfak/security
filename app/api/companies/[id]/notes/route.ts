@@ -9,7 +9,7 @@ export async function PUT(
 ) {
   try {
     await dbConnect();
-    const { notes } = await request.json();
+    const { notes, isNewNote, historyIndex } = await request.json();
     const { id } = await params;
     const companyId = id;
 
@@ -33,16 +33,34 @@ export async function PUT(
       company.notesHistory = [];
     }
 
-    // Add the CURRENT note to history before updating (preserves all changes)
-    if (company.notes !== undefined && company.notes !== null) {
-      company.notesHistory.push({
-        notes: company.notes,
-        changedAt: new Date(),
-      });
-    }
+    // Edit existing history item
+    if (historyIndex !== undefined && historyIndex !== null) {
+      if (
+        historyIndex < 0 ||
+        historyIndex >= company.notesHistory.length
+      ) {
+        return NextResponse.json(
+          { error: "Invalid history index" },
+          { status: 400 },
+        );
+      }
+      company.notesHistory[historyIndex] = {
+        notes: notes || "",
+        changedAt: company.notesHistory[historyIndex].changedAt,
+      };
+    } else {
+      // Add new note
+      // Add the CURRENT note to history before updating (preserves all changes)
+      if (company.notes !== undefined && company.notes !== null) {
+        company.notesHistory.push({
+          notes: company.notes,
+          changedAt: new Date(),
+        });
+      }
 
-    // Update to the new note
-    company.notes = notes || "";
+      // Update to the new note
+      company.notes = notes || "";
+    }
 
     await company.save();
 

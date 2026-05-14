@@ -36,33 +36,47 @@ async function dohQuery(name: string, type: string) {
 async function buildDirectUri(srvUri: string): Promise<string> {
   const url = new URL(srvUri);
 
-  const srvData = await dohQuery(`_mongodb._tcp.${url.hostname}`, "SRV");
-  const hosts = (srvData.Answer ?? [])
-    .filter((r) => r.type === 33)
-    .map((r) => {
-      const parts = r.data.trim().split(/\s+/);
-      const port = parts[2];
-      const target = parts[3].replace(/\.$/, "");
-      return `${target}:${port}`;
-    });
-
-  if (!hosts.length) throw new Error("DoH returned no SRV records");
-
-  // TXT record carries authSource and replicaSet for Atlas
-  let options = "tls=true";
   try {
-    const txtData = await dohQuery(url.hostname, "TXT");
-    const txt = txtData.Answer?.find((r) => r.type === 16);
-    if (txt) options = txt.data.replace(/"/g, "") + "&tls=true";
-  } catch {
-    // fall back to tls=true only
+    const srvData = await dohQuery(`_mongodb._tcp.${url.hostname}`, "SRV");
+    const hosts = (srvData.Answer ?? [])
+      .filter((r) => r.type === 33)
+      .map((r) => {
+        const parts = r.data.trim().split(/\s+/);
+        const port = parts[2];
+        const target = parts[3].replace(/\.$/, "");
+        return `${target}:${port}`;
+      });
+
+    if (!hosts.length) {
+      console.warn(
+        "[buildDirectUri] DoH returned no SRV records. Falling back to mongodb+srv:// URI.",
+      );
+      return srvUri;
+    }
+
+    // TXT record carries authSource and replicaSet for Atlas
+    let options = "tls=true";
+    try {
+      const txtData = await dohQuery(url.hostname, "TXT");
+      const txt = txtData.Answer?.find((r) => r.type === 16);
+      if (txt) options = txt.data.replace(/"/g, "") + "&tls=true";
+    } catch {
+      // fall back to tls=true only
+    }
+
+    const appName = url.searchParams.get("appName");
+    if (appName) options += `&appName=${encodeURIComponent(appName)}`;
+
+    const auth = url.username ? `${url.username}:${url.password}@` : "";
+    return `mongodb://${auth}${hosts.join(",")}${url.pathname}?${options}`;
+  } catch (err) {
+    console.warn(
+      "[buildDirectUri] DNS resolution failed, falling back to mongodb+srv:// URI. Error:",
+      err,
+    );
+    // If DoH fails, return the original URI and let MongoDB driver handle it
+    return srvUri;
   }
-
-  const appName = url.searchParams.get("appName");
-  if (appName) options += `&appName=${encodeURIComponent(appName)}`;
-
-  const auth = url.username ? `${url.username}:${url.password}@` : "";
-  return `mongodb://${auth}${hosts.join(",")}${url.pathname}?${options}`;
 }
 
 export async function dbConnect(): Promise<typeof mongoose> {
@@ -70,9 +84,14 @@ export async function dbConnect(): Promise<typeof mongoose> {
 
   if (!cached.promise) {
     cached.promise = (async () => {
-      const uri = MONGODB_URI!.startsWith("mongodb+srv://")
-        ? await buildDirectUri(MONGODB_URI!)
-        : MONGODB_URI!;
+      let uri = MONGODB_URI!;
+      
+      // Skip DoH resolution - let MongoDB driver handle mongodb+srv:// directly
+      // This avoids DNS resolution issues in environments with restricted DNS
+      if (uri.startsWith("mongodb+srv://")) {
+        console.log("[dbConnect] Using mongodb+srv:// URI directly (skipping DoH)");
+      }
+      
       const conn = await mongoose.connect(uri, { bufferCommands: false });
 
       try {
