@@ -38,6 +38,11 @@ const PERSON_LIST = [
   "عصام",
   "حموده",
   "زغلول",
+  "اسامة",
+  "فهمى",
+  "حسام",
+  "رمزى",
+  "سالى",
 ];
 
 const INITIAL_STATE: CompanyFormData = {

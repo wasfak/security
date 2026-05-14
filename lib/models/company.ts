@@ -3,6 +3,7 @@ import mongoose, { Schema, type Document, type Model } from "mongoose";
 export interface ICompany extends Document {
   companyName: string;
   phoneNumber: string;
+  newOrder: boolean;
   purchasePerson: string;
   notes?: string;
   notesHistory?: Array<{ notes: string; changedAt: Date }>;
@@ -11,6 +12,10 @@ export interface ICompany extends Document {
 
 const CompanySchema = new Schema<ICompany>(
   {
+    newOrder: {
+      type: Boolean,
+      default: false,
+    },
     companyName: {
       type: String,
       unique: true,
